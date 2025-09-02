@@ -20,6 +20,13 @@ from ..optim import ModelEMA, Warmup
 from ..data import CocoEvaluator
 from ..misc import MetricLogger, SmoothedValue, dist_utils
 
+try:
+    import wandb
+    _WANDB_AVAILABLE = True
+except ImportError:
+    _WANDB_AVAILABLE = False
+    wandb = None
+
 
 def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -36,6 +43,11 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
     ema :ModelEMA = kwargs.get('ema', None)
     scaler :GradScaler = kwargs.get('scaler', None)
     lr_warmup_scheduler :Warmup = kwargs.get('lr_warmup_scheduler', None)
+    
+    # wandb parameters
+    use_wandb = kwargs.get('use_wandb', False)
+    wandb_run = kwargs.get('wandb_run', None)
+    wandb_log_freq = kwargs.get('wandb_log_freq', 10)
 
     cur_iters = epoch * len(data_loader)
 
@@ -115,6 +127,21 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
                 writer.add_scalar(f'Lr/pg_{j}', pg['lr'], global_step)
             for k, v in loss_dict_reduced.items():
                 writer.add_scalar(f'Loss/{k}', v.item(), global_step)
+        
+        # wandb logging
+        if (use_wandb and wandb_run is not None and _WANDB_AVAILABLE and 
+            dist_utils.is_main_process() and global_step % wandb_log_freq == 0):
+            log_dict = {
+                'train/loss_total': loss_value.item(),
+                'train/learning_rate': optimizer.param_groups[0]['lr'],
+                'train/epoch': epoch,
+                'train/step': global_step
+            }
+            # Add individual loss components
+            for k, v in loss_dict_reduced.items():
+                log_dict[f'train/loss_{k}'] = v.item()
+            
+            wandb.log(log_dict, step=global_step)
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()

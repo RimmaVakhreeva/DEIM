@@ -1,9 +1,11 @@
 __include__: [
   './dfine_hgnetv2_x_coco.yml',
   '../base/deim.yml',
+  '../base/wandb.yml',
 ]
 
 output_dir: /media/fast/drone_train/drone_ds/output
+find_unused_parameters: True
 
 optimizer:
   type: AdamW
@@ -20,23 +22,40 @@ optimizer:
   weight_decay: 0.000125
   
 # Increase to search for the optimal ema
-epoches: 20
+epoches: 10
 
 ## Our LR-Scheduler
-flat_epoch: 15    # 4 + epoch // 2, e.g., 40 = 4 + 72 / 2
+flat_epoch: 8    # 4 + epoch // 2, e.g., 40 = 4 + 72 / 2
 no_aug_epoch: 1
 
 train_dataloader: 
   dataset: 
     transforms:
       policy:
-        epoch: [3, 10, 15]   # list
+        epoch: [2, 5, 8]   # list
 
   collate_fn:
-    mixup_epochs: [4, 29]
+    mixup_epochs: [2, 8]
     stop_epoch: 20
 
-  total_batch_size: 8
+  total_batch_size: 4
 
 val_dataloader:
-  total_batch_size: 16
+  total_batch_size: 4
+
+# WandB configuration for drone detection experiments
+wandb:
+  enabled: True
+  project: "DEIM-drone-detection"
+  entity: null  # set your wandb entity/team here
+  name: "deim-hgnetv2-x-drone-20ep"
+  tags: ["deim", "dfine", "hgnetv2-x", "drone-detection", "20epochs"]
+  notes: "DEIM HGNetv2-X training on drone dataset for 20 epochs with custom learning rate schedule"
+  group: "hgnetv2-x-experiments"
+  job_type: "training"
+  
+  # Logging settings
+  log_frequency: 10
+  save_artifacts: True
+  watch_model: True
+  log_gradients: False

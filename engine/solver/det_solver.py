@@ -14,6 +14,13 @@ import torch
 
 from ..misc import dist_utils, stats
 
+try:
+    import wandb
+    _WANDB_AVAILABLE = True
+except ImportError:
+    _WANDB_AVAILABLE = False
+    wandb = None
+
 from ._solver import BaseSolver
 from .det_engine import train_one_epoch, evaluate
 from ..optim.lr_scheduler import FlatCosineLRScheduler
@@ -87,7 +94,10 @@ class DetSolver(BaseSolver):
                 ema=self.ema, 
                 scaler=self.scaler, 
                 lr_warmup_scheduler=self.lr_warmup_scheduler,
-                writer=self.writer
+                writer=self.writer,
+                use_wandb=args.use_wandb,
+                wandb_run=args.wandb_run,
+                wandb_log_freq=args.wandb.get('log_frequency', 10) if args.wandb else 10
             )
 
             if not self.self_lr_scheduler:  # update by epoch 
@@ -119,6 +129,15 @@ class DetSolver(BaseSolver):
                 if self.writer and dist_utils.is_main_process():
                     for i, v in enumerate(test_stats[k]):
                         self.writer.add_scalar(f'Test/{k}_{i}'.format(k), v, epoch)
+                
+                # wandb logging for validation metrics
+                if (args.use_wandb and args.wandb_run is not None and _WANDB_AVAILABLE and 
+                    dist_utils.is_main_process()):
+                    val_log_dict = {}
+                    for i, v in enumerate(test_stats[k]):
+                        val_log_dict[f'val/{k}_{i}'] = v
+                    val_log_dict['val/epoch'] = epoch
+                    wandb.log(val_log_dict, step=epoch)
 
                 if k in best_stat:
                     best_stat['epoch'] = epoch if test_stats[k][0] > best_stat[k] else best_stat['epoch']
@@ -132,9 +151,22 @@ class DetSolver(BaseSolver):
                     top1 = best_stat[k]
                     if self.output_dir:
                         if epoch >= self.train_dataloader.collate_fn.stop_epoch:
-                            dist_utils.save_on_master(self.state_dict(), self.output_dir / 'best_stg2.pth')
+                            checkpoint_path = self.output_dir / 'best_stg2.pth'
+                            dist_utils.save_on_master(self.state_dict(), checkpoint_path)
                         else:
-                            dist_utils.save_on_master(self.state_dict(), self.output_dir / 'best_stg1.pth')
+                            checkpoint_path = self.output_dir / 'best_stg1.pth'
+                            dist_utils.save_on_master(self.state_dict(), checkpoint_path)
+                        
+                        # Save model as wandb artifact
+                        if (args.use_wandb and args.wandb_run is not None and _WANDB_AVAILABLE and 
+                            dist_utils.is_main_process() and args.wandb.get('save_artifacts', True)):
+                            artifact = wandb.Artifact(
+                                name=f'model-epoch-{epoch}',
+                                type='model',
+                                description=f'Best model at epoch {epoch} with {k}={best_stat[k]:.4f}'
+                            )
+                            artifact.add_file(str(checkpoint_path))
+                            args.wandb_run.log_artifact(artifact)
 
                 best_stat_print[k] = max(best_stat[k], top1)
                 print(f'best_stat: {best_stat_print}')  # global best

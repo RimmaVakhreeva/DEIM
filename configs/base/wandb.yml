@@ -1,0 +1,22 @@
+# Weights & Biases Configuration
+wandb:
+  enabled: False  # can be overridden by --use-wandb
+  project: "DEIM-detection"
+  entity: null  # your wandb team/username
+  name: null    # auto-generated if null
+  id: null      # for resuming runs
+  tags: ["deim", "object-detection"]
+  notes: "DEIM training run"
+  group: null   # for grouping related runs
+  job_type: "training"
+  
+  # Logging settings
+  watch_model: True
+  log_gradients: False
+  log_frequency: 10  # log every N steps
+  save_artifacts: True  # save best model as artifact
+  
+  # Advanced settings
+  save_code: True  # save code snapshot
+  anonymous: null  # "allow", "never", "must"
+  mode: "online"   # "online", "offline", "disabled"

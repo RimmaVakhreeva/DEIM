@@ -14,6 +14,13 @@ from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from typing import Callable, List, Dict
 
+try:
+    import wandb
+    _WANDB_AVAILABLE = True
+except ImportError:
+    _WANDB_AVAILABLE = False
+    wandb = None
+
 
 __all__ = ['BaseConfig', ]
 
@@ -42,6 +49,10 @@ class BaseConfig(object):
         self._collate_fn :Callable = None
         self._evaluator :Callable[[nn.Module, DataLoader, str], ] = None
         self._writer: SummaryWriter = None
+        
+        # wandb configuration
+        self.wandb: Dict = None
+        self._wandb_run = None
 
         # dataset
         self.num_workers :int = 0
@@ -290,6 +301,23 @@ class BaseConfig(object):
     def writer(self, m):
         assert isinstance(m, SummaryWriter), f'{type(m)} must be SummaryWriter'
         self._writer = m
+
+    @property
+    def use_wandb(self) -> bool:
+        """Check if wandb is enabled and available"""
+        if not _WANDB_AVAILABLE:
+            return False
+        return self.wandb and self.wandb.get('enabled', False)
+
+    @property
+    def wandb_run(self):
+        """Get current wandb run"""
+        return self._wandb_run
+
+    @wandb_run.setter
+    def wandb_run(self, run):
+        """Set current wandb run"""
+        self._wandb_run = run
 
     def __repr__(self, ):
         s = ''
