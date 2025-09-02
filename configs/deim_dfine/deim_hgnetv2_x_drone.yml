@@ -23,6 +23,7 @@ optimizer:
   
 # Increase to search for the optimal ema
 epoches: 10
+gradient_accumulation_steps: 8
 
 ## Our LR-Scheduler
 flat_epoch: 8    # 4 + epoch // 2, e.g., 40 = 4 + 72 / 2

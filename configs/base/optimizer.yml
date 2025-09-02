@@ -9,6 +9,10 @@ ema:
 epoches: 72
 clip_max_norm: 0.1
 
+# Gradient Accumulation - set to 1 to disable, >1 to enable accumulation
+# Effective batch size = batch_size * gradient_accumulation_steps
+gradient_accumulation_steps: 1
+
 
 optimizer:
   type: AdamW

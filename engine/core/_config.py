@@ -83,6 +83,9 @@ class BaseConfig(object):
         self.sync_bn :bool = False
         self.clip_max_norm : float = 0.
         self.find_unused_parameters :bool = None
+        
+        # gradient accumulation
+        self.gradient_accumulation_steps :int = 1
 
         self.seed :int = None
         self.print_freq :int = None

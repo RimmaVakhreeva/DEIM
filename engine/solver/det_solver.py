@@ -97,7 +97,8 @@ class DetSolver(BaseSolver):
                 writer=self.writer,
                 use_wandb=args.use_wandb,
                 wandb_run=args.wandb_run,
-                wandb_log_freq=args.wandb.get('log_frequency', 10) if args.wandb else 10
+                wandb_log_freq=args.wandb.get('log_frequency', 10) if args.wandb else 10,
+                gradient_accumulation_steps=args.gradient_accumulation_steps
             )
 
             if not self.self_lr_scheduler:  # update by epoch 

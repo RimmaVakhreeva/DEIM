@@ -6,6 +6,8 @@ checkpoint_freq: 12
 sync_bn: True
 find_unused_parameters: False
 
+# Gradient Accumulation - set to 1 to disable, >1 to enable
+gradient_accumulation_steps: 1
 
 use_amp: False
 scaler:

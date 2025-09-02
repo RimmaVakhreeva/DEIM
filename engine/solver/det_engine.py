@@ -48,8 +48,14 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
     use_wandb = kwargs.get('use_wandb', False)
     wandb_run = kwargs.get('wandb_run', None)
     wandb_log_freq = kwargs.get('wandb_log_freq', 10)
+    
+    # gradient accumulation parameters
+    gradient_accumulation_steps = kwargs.get('gradient_accumulation_steps', 1)
 
     cur_iters = epoch * len(data_loader)
+    
+    # Zero gradients at the beginning of epoch
+    optimizer.zero_grad()
 
     for i, (samples, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         samples = samples.to(device)
@@ -77,28 +83,36 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
                 loss_dict = criterion(outputs, targets, **metas)
 
             loss = sum(loss_dict.values())
+            # Scale loss for gradient accumulation
+            loss = loss / gradient_accumulation_steps
             scaler.scale(loss).backward()
 
-            if max_norm > 0:
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+            # Only step and zero gradients every gradient_accumulation_steps
+            if (i + 1) % gradient_accumulation_steps == 0:
+                if max_norm > 0:
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
 
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
 
         else:
             outputs = model(samples, targets=targets)
             loss_dict = criterion(outputs, targets, **metas)
 
             loss : torch.Tensor = sum(loss_dict.values())
-            optimizer.zero_grad()
+            # Scale loss for gradient accumulation
+            loss = loss / gradient_accumulation_steps
             loss.backward()
 
-            if max_norm > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+            # Only step and zero gradients every gradient_accumulation_steps
+            if (i + 1) % gradient_accumulation_steps == 0:
+                if max_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
 
-            optimizer.step()
+                optimizer.step()
+                optimizer.zero_grad()
 
         # ema
         if ema is not None:
@@ -142,6 +156,20 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
                 log_dict[f'train/loss_{k}'] = v.item()
             
             wandb.log(log_dict, step=global_step)
+
+    # Step optimizer if there are remaining accumulated gradients at the end of epoch
+    if (i + 1) % gradient_accumulation_steps != 0:
+        if scaler is not None:
+            if max_norm > 0:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            if max_norm > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+            optimizer.step()
+        optimizer.zero_grad()
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
