@@ -9,6 +9,7 @@ Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import sys
 import math
+import gc
 from typing import Iterable
 
 import torch
@@ -61,7 +62,15 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         global_step = epoch * len(data_loader) + i
-        metas = dict(epoch=epoch, step=i, global_step=global_step, epoch_step=len(data_loader))
+        
+        # Create metas as a simple dict without accumulating references
+        metas = {'epoch': epoch, 'step': i, 'global_step': global_step, 'epoch_step': len(data_loader)}
+        
+        # Periodic garbage collection to prevent memory accumulation
+        if i > 0 and i % 100 == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         if scaler is not None:
             with torch.autocast(device_type=str(device), cache_enabled=True):
@@ -82,7 +91,10 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
             with torch.autocast(device_type=str(device), enabled=False):
                 loss_dict = criterion(outputs, targets, **metas)
 
-            loss = sum(loss_dict.values())
+            # Store keys for later reconstruction
+            loss_keys = list(loss_dict.keys())
+            loss_values = list(loss_dict.values())
+            loss = sum(loss_values)
             # Scale loss for gradient accumulation
             loss = loss / gradient_accumulation_steps
             scaler.scale(loss).backward()
@@ -101,7 +113,10 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
             outputs = model(samples, targets=targets)
             loss_dict = criterion(outputs, targets, **metas)
 
-            loss : torch.Tensor = sum(loss_dict.values())
+            # Store keys for later reconstruction
+            loss_keys = list(loss_dict.keys())
+            loss_values = list(loss_dict.values())
+            loss : torch.Tensor = sum(loss_values)
             # Scale loss for gradient accumulation
             loss = loss / gradient_accumulation_steps
             loss.backward()
@@ -124,8 +139,13 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
             if lr_warmup_scheduler is not None:
                 lr_warmup_scheduler.step()
 
+        # Recreate loss_dict for logging
+        loss_dict = dict(zip(loss_keys, loss_values))
         loss_dict_reduced = dist_utils.reduce_dict(loss_dict)
         loss_value = sum(loss_dict_reduced.values())
+        
+        # Clean up references
+        del loss_dict, outputs
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
@@ -174,6 +194,12 @@ def train_one_epoch(self_lr_scheduler, lr_scheduler, model: torch.nn.Module, cri
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
+    
+    # Final cleanup at end of epoch
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 

@@ -291,6 +291,8 @@ class DEIMCriterion(nn.Module):
                 cached_indices_enc.append(indices_enc)
                 indices_aux_list.append(indices_enc)
             indices_go = self._get_go_indices(indices, indices_aux_list)
+            # Clear the auxiliary list to free memory
+            del indices_aux_list
 
             num_boxes_go = sum(len(x[0]) for x in indices_go)
             num_boxes_go = torch.as_tensor([num_boxes_go], dtype=torch.float, device=next(iter(outputs.values())).device)
@@ -358,9 +360,12 @@ class DEIMCriterion(nn.Module):
             if class_agnostic:
                 orig_num_classes = self.num_classes
                 self.num_classes = 1
-                enc_targets = copy.deepcopy(targets)
-                for t in enc_targets:
-                    t['labels'] = torch.zeros_like(t["labels"])
+                # Use shallow copy with detached tensors instead of deepcopy
+                enc_targets = []
+                for t in targets:
+                    enc_t = {k: v.detach() if torch.is_tensor(v) else v for k, v in t.items()}
+                    enc_t['labels'] = torch.zeros_like(t["labels"])
+                    enc_targets.append(enc_t)
             else:
                 enc_targets = targets
 
@@ -378,6 +383,8 @@ class DEIMCriterion(nn.Module):
 
             if class_agnostic:
                 self.num_classes = orig_num_classes
+                # Clean up enc_targets if they were created
+                del enc_targets
 
         # In case of cdn auxiliary losses.
         if 'dn_outputs' in outputs:
@@ -406,6 +413,10 @@ class DEIMCriterion(nn.Module):
                     l_dict = {k + '_dn_pre': v for k, v in l_dict.items()}
                     losses.update(l_dict)
 
+        # Clean up cached indices before returning
+        if 'aux_outputs' in outputs:
+            del cached_indices, cached_indices_enc, indices_go
+        
         # For debugging Objects365 pre-train.
         losses = {k:torch.nan_to_num(v, nan=0.0) for k, v in losses.items()}
         return losses
