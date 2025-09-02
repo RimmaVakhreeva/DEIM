@@ -1,0 +1,157 @@
+================================================================================
+CHECKING DATASET AVAILABILITY
+================================================================================
+✅ RGBTDronePerson: Found at /mnt/archive/person_drone/RGBTDronePerson-20250828T031729Z-1-001/RGBTDronePerson
+✅ search-and-rescue: Found at /mnt/archive/person_drone/search-and-rescue
+✅ stanford_drone_coco: Found at /mnt/archive/person_drone/stanford_drone_coco
+✅ vtsar_coco: Found at /mnt/archive/person_drone/vtsar_coco
+✅ vtuav_coco: Found at /mnt/archive/person_drone/vtuav_coco
+✅ wisard_coco: Found at /mnt/archive/person_drone/wisard_coco
+✅ VisDrone2019-DET: Found at /mnt/archive/person_drone/VisDrone2019-DET
+✅ Objects365: Found at /mnt/archive/datasets/OpenDataLab___Objects365
+
+Summary: 8 available, 0 missing
+================================================================================
+
+2025-09-02 13:00:56,172 - INFO - Starting dataset combination process...
+2025-09-02 13:00:56,196 - INFO - Processing rgbt_drone_person - train - thermal
+Processing rgbt_drone_person train thermal images: 100%|██████████| 4900/4900 [00:56<00:00, 86.43it/s]
+2025-09-02 13:01:53,166 - INFO - Processing rgbt_drone_person - val - thermal
+Processing rgbt_drone_person val thermal images: 100%|██████████| 1225/1225 [00:10<00:00, 119.44it/s]
+2025-09-02 13:02:03,531 - INFO - Processing rgbt_drone_person - sub_train - thermal
+Processing rgbt_drone_person sub_train thermal images: 100%|██████████| 1013/1013 [00:00<00:00, 1950.97it/s]
+2025-09-02 13:02:04,104 - INFO - Processing rgbt_drone_person - sub_train - visible
+Processing rgbt_drone_person sub_train visible images: 100%|██████████| 1013/1013 [00:10<00:00, 92.23it/s]
+2025-09-02 13:02:15,229 - INFO - Processing search_and_rescue - train
+Processing search_and_rescue train images: 100%|██████████| 4041/4041 [00:57<00:00, 70.86it/s]
+2025-09-02 13:03:12,327 - INFO - Processing search_and_rescue - valid
+Processing search_and_rescue valid images: 100%|██████████| 1144/1144 [00:12<00:00, 88.48it/s]
+2025-09-02 13:03:25,312 - INFO - Processing search_and_rescue - test
+Processing search_and_rescue test images: 100%|██████████| 570/570 [00:04<00:00, 129.97it/s]
+2025-09-02 13:03:29,738 - INFO - Processing stanford_drone
+Processing stanford_drone images: 100%|██████████| 17443/17443 [02:39<00:00, 109.35it/s]
+2025-09-02 13:06:11,192 - INFO - Processing vtsar
+Processing vtsar images: 100%|██████████| 10667/10667 [01:41<00:00, 105.48it/s]
+2025-09-02 13:07:52,661 - INFO - Processing vtuav
+Processing vtuav images: 100%|██████████| 33474/33474 [07:42<00:00, 72.42it/s]
+2025-09-02 13:15:36,269 - INFO - Processing wisard
+Processing wisard images: 100%|██████████| 56130/56130 [25:23<00:00, 36.85it/s]
+2025-09-02 13:41:00,278 - INFO - Processing visdrone2019
+Processing visdrone2019 images: 100%|██████████| 8629/8629 [02:29<00:00, 57.79it/s]
+2025-09-02 13:43:31,899 - INFO - Processing objects365 - train split (this may take a while...)
+2025-09-02 13:45:08,388 - INFO - Identifying images with person annotations...
+Scanning annotations: 100%|██████████| 25407633/25407633 [00:02<00:00, 9570441.65it/s]
+2025-09-02 13:45:11,043 - INFO - Found 1375778 images with persons
+Processing objects365 images: 100%|██████████| 1375778/1375778 [5:52:07<00:00, 65.12it/s]
+Processing annotations: 100%|██████████| 25407633/25407633 [02:01<00:00, 208903.32it/s]
+2025-09-02 19:39:23,195 - INFO - Saving combined dataset to /mnt/archive/person_drone/combined_dataset/annotations.json
+
+================================================================================
+COMBINED DATASET STATISTICS
+================================================================================
+
+OVERALL:
+  Total Images: 1,516,024
+  Total Annotations: 6,931,206
+  Average Annotations per Image: 4.57
+
+--------------------------------------------------------------------------------
+PER-DATASET BREAKDOWN:
+--------------------------------------------------------------------------------
+
+OBJECTS365:
+  Total images: 1,375,775
+  Images with persons: 1,375,775 (90.7% of total)
+  Total annotations: 6,004,140 (86.6% of total)
+  Crowd annotations: 0 (0.0%)
+  Splits: train
+  Avg annotations/image: 4.36
+
+RGBT_DRONE_PERSON:
+  Total images: 8,151
+  Images with persons: 8,080 (0.5% of total)
+  Total annotations: 92,396 (1.3% of total)
+  Crowd annotations: 11,432 (12.4%)
+  Modalities: thermal, visible
+  Splits: sub_train, train, val
+  Avg annotations/image: 11.44
+
+SEARCH_AND_RESCUE:
+  Total images: 5,755
+  Images with persons: 4,923 (0.3% of total)
+  Total annotations: 7,424 (0.1% of total)
+  Crowd annotations: 0 (0.0%)
+  Splits: test, train, valid
+  Avg annotations/image: 1.51
+
+STANFORD_DRONE:
+  Total images: 17,443
+  Images with persons: 354 (0.0% of total)
+  Total annotations: 318,722 (4.6% of total)
+  Crowd annotations: 0 (0.0%)
+  Splits: train
+  Avg annotations/image: 900.34
+
+VISDRONE2019:
+  Total images: 8,629
+  Images with persons: 7,482 (0.5% of total)
+  Total annotations: 147,747 (2.1% of total)
+  Crowd annotations: 38,560 (26.1%)
+  Avg annotations/image: 19.75
+
+VTSAR:
+  Total images: 10,667
+  Images with persons: 10,649 (0.7% of total)
+  Total annotations: 44,371 (0.6% of total)
+  Crowd annotations: 0 (0.0%)
+  Avg annotations/image: 4.17
+
+VTUAV:
+  Total images: 33,474
+  Images with persons: 33,092 (2.2% of total)
+  Total annotations: 242,202 (3.5% of total)
+  Crowd annotations: 0 (0.0%)
+  Avg annotations/image: 7.32
+
+WISARD:
+  Total images: 56,130
+  Images with persons: 31,184 (2.1% of total)
+  Total annotations: 74,204 (1.1% of total)
+  Crowd annotations: 0 (0.0%)
+  Avg annotations/image: 2.38
+2025-09-02 19:40:26,672 - INFO - Dataset saved successfully
+
+--------------------------------------------------------------------------------
+IMAGE DIMENSIONS:
+--------------------------------------------------------------------------------
+  Width range: 65 - 12896 pixels
+  Height range: 61 - 13024 pixels
+  Average width: 782 pixels
+  Average height: 622 pixels
+
+--------------------------------------------------------------------------------
+ANNOTATION STATISTICS:
+--------------------------------------------------------------------------------
+  Total bounding boxes: 6,931,206
+  Crowd annotations: 872,808 (12.6%)
+  Area range: 0 - 46873523 pixels²
+  Average area: 44968 pixels²
+
+--------------------------------------------------------------------------------
+DATASET CONTRIBUTION SUMMARY:
+--------------------------------------------------------------------------------
+Dataset                   Total Images  With Person       %  Annotations       %
+----------------------------------------------------------------------------------------------------
+objects365                   1,375,775    1,375,775   90.7%    6,004,140   86.6%
+wisard                          56,130       31,184    3.7%       74,204    1.1%
+vtuav                           33,474       33,092    2.2%      242,202    3.5%
+stanford_drone                  17,443          354    1.2%      318,722    4.6%
+vtsar                           10,667       10,649    0.7%       44,371    0.6%
+visdrone2019                     8,629        7,482    0.6%      147,747    2.1%
+rgbt_drone_person                8,151        8,080    0.5%       92,396    1.3%
+search_and_rescue                5,755        4,923    0.4%        7,424    0.1%
+----------------------------------------------------------------------------------------------------
+TOTAL                        1,516,024    1,471,539  100.0%    6,931,206  100.0%
+
+================================================================================
+2025-09-02 19:40:27,890 - INFO - Dataset combination complete!

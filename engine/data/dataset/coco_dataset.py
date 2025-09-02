@@ -4,6 +4,10 @@ Mostly copy-paste from https://github.com/pytorch/vision/blob/13b35ff/references
 
 Copyright(c) 2023 lyuwenyu. All Rights Reserved.
 """
+import os
+from pathlib import Path
+from typing import Union, Optional, Callable, Any
+import random
 
 import torch
 import torch.utils.data
@@ -13,6 +17,8 @@ import torchvision
 from PIL import Image
 import faster_coco_eval
 import faster_coco_eval.core.mask as coco_mask
+from torchvision.datasets import VisionDataset
+
 from ._dataset import DetDataset
 from .._misc import convert_to_tv_tensor
 from ...core import register
@@ -21,11 +27,96 @@ torchvision.disable_beta_transforms_warning()
 faster_coco_eval.init_as_pycocotools()
 Image.MAX_IMAGE_PIXELS = None
 
-__all__ = ['CocoDetection']
+
+class CocoDetection(VisionDataset):
+    def __init__(
+        self,
+        root: Union[str, Path],
+        annFile: str,
+        transform: Optional[Callable] = None,
+        target_transform: Optional[Callable] = None,
+        transforms: Optional[Callable] = None,
+    ) -> None:
+        super().__init__(root, transforms, transform, target_transform)
+        from pycocotools.coco import COCO
+
+        self.coco = COCO(annFile)
+        self.all_ids = list(sorted(self.coco.imgs.keys()))
+        
+        # Initialize dataset-specific ID lists
+        self._initialize_dataset_ids()
+        
+        # Perform initial sampling
+        self._sample_indices()
+    
+    def _initialize_dataset_ids(self):
+        """Initialize and cache dataset-specific ID lists"""
+        # Datasets to use all images from
+        use_all_datasets = [
+            "rgbt_drone_person", "search_and_rescue", "stanford_drone", 
+            "visdrone2019", "vtsar", "vtuav", "wisard"
+        ]
+        
+        # Separate indices by dataset (computed once)
+        self.priority_dataset_ids = []
+        self.objects365_ids = []
+        
+        for img_id in self.all_ids:
+            img_info = self.coco.loadImgs(img_id)[0]
+            # Check if image has dataset information
+            if 'dataset' in img_info:
+                dataset_name = img_info['dataset']
+                if dataset_name in use_all_datasets:
+                    self.priority_dataset_ids.append(img_id)
+                elif dataset_name == "objects365":
+                    self.objects365_ids.append(img_id)
+            else:
+                # If no dataset info, include it by default
+                self.priority_dataset_ids.append(img_id)
+    
+    def _sample_indices(self):
+        """Sample indices based on dataset requirements:
+        - Use all images from specific datasets
+        - Sample 10% from objects365 dataset
+        """
+        # Start with all priority dataset IDs
+        sampled_ids = self.priority_dataset_ids.copy()
+        
+        # Sample 10% from objects365
+        if self.objects365_ids:
+            num_samples = max(1, int(len(self.objects365_ids) * 0.1))
+            sampled_objects365 = random.sample(self.objects365_ids, num_samples)
+            sampled_ids.extend(sampled_objects365)
+        
+        # Update ids with sampled indices
+        self.ids = sorted(sampled_ids)
+
+    def _load_image(self, id: int) -> Image.Image:
+        path = self.coco.loadImgs(id)[0]["file_name"]
+        return Image.open(os.path.join(self.root, path)).convert("RGB")
+
+    def _load_target(self, id: int) -> list[Any]:
+        return self.coco.loadAnns(self.coco.getAnnIds(id))
+
+    def __getitem__(self, index: int) -> tuple[Any, Any]:
+        if not isinstance(index, int):
+            raise ValueError(f"Index must be of type integer, got {type(index)} instead.")
+
+        id = self.ids[index]
+        image = self._load_image(id)
+        target = self._load_target(id)
+
+        if self.transforms is not None:
+            image, target = self.transforms(image, target)
+
+        return image, target
+
+    def __len__(self) -> int:
+        return len(self.ids)
 
 
 @register()
-class CocoDetection(torchvision.datasets.CocoDetection, DetDataset):
+class CocoDetection(CocoDetection, DetDataset):
     __inject__ = ['transforms', ]
     __share__ = ['remap_mscoco_category']
 
@@ -88,6 +179,16 @@ class CocoDetection(torchvision.datasets.CocoDetection, DetDataset):
     @property
     def label2category(self, ):
         return {i: cat['id'] for i, cat in enumerate(self.categories)}
+
+    def set_epoch(self, epoch) -> None:
+        """Set epoch and resample indices for objects365 dataset"""
+        self._epoch = epoch
+        # Set random seed based on epoch for reproducibility
+        random.seed(epoch)
+        # Resample indices - this will give different 10% sample from objects365 each epoch
+        self._sample_indices()
+        # Reset random seed to avoid affecting other random operations
+        random.seed()
 
 
 def convert_coco_poly_to_mask(segmentations, height, width):
