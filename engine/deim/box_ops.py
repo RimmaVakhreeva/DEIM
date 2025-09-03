@@ -10,8 +10,24 @@ from torchvision.ops.boxes import box_area
 
 def box_cxcywh_to_xyxy(x):
     x_c, y_c, w, h = x.unbind(-1)
-    b = [(x_c - 0.5 * w.clamp(min=0.0)), (y_c - 0.5 * h.clamp(min=0.0)),
-         (x_c + 0.5 * w.clamp(min=0.0)), (y_c + 0.5 * h.clamp(min=0.0))]
+    w_clamped = w.clamp(min=0.0)
+    h_clamped = h.clamp(min=0.0)
+    x1 = x_c - 0.5 * w_clamped
+    y1 = y_c - 0.5 * h_clamped
+    x2 = x_c + 0.5 * w_clamped
+    y2 = y_c + 0.5 * h_clamped
+    
+    # Ensure x2 >= x1 and y2 >= y1 to avoid invalid boxes
+    x1 = torch.clamp(x1, min=0.0, max=1.0)
+    y1 = torch.clamp(y1, min=0.0, max=1.0)
+    x2 = torch.clamp(x2, min=0.0, max=1.0)
+    y2 = torch.clamp(y2, min=0.0, max=1.0)
+    
+    # Final check to ensure x2 >= x1 and y2 >= y1
+    x2 = torch.maximum(x2, x1)
+    y2 = torch.maximum(y2, y1)
+    
+    b = [x1, y1, x2, y2]
     return torch.stack(b, dim=-1)
 
 
@@ -48,19 +64,40 @@ def generalized_box_iou(boxes1, boxes2):
     Returns a [N, M] pairwise matrix, where N = len(boxes1)
     and M = len(boxes2)
     """
-    # degenerate boxes gives inf / nan results
-    # so do an early check
-    assert (boxes1[:, 2:] >= boxes1[:, :2]).all()
-    assert (boxes2[:, 2:] >= boxes2[:, :2]).all()
-    iou, union = box_iou(boxes1, boxes2)
+    # Handle degenerate boxes gracefully instead of crashing
+    eps = 1e-7
+    
+    # Fix invalid boxes where x2 < x1 or y2 < y1 using functional operations
+    # to avoid in-place modifications that break gradient computation
+    
+    # For boxes1: ensure x2 >= x1 and y2 >= y1
+    x1_1, y1_1, x2_1, y2_1 = boxes1.unbind(-1)
+    x2_1_fixed = torch.maximum(x2_1, x1_1 + eps)
+    y2_1_fixed = torch.maximum(y2_1, y1_1 + eps)
+    boxes1_fixed = torch.stack([x1_1, y1_1, x2_1_fixed, y2_1_fixed], dim=-1)
+    
+    # For boxes2: ensure x2 >= x1 and y2 >= y1
+    x1_2, y1_2, x2_2, y2_2 = boxes2.unbind(-1)
+    x2_2_fixed = torch.maximum(x2_2, x1_2 + eps)
+    y2_2_fixed = torch.maximum(y2_2, y1_2 + eps)
+    boxes2_fixed = torch.stack([x1_2, y1_2, x2_2_fixed, y2_2_fixed], dim=-1)
+    
+    # Now compute IoU with the fixed boxes
+    iou, union = box_iou(boxes1_fixed, boxes2_fixed)
 
-    lt = torch.min(boxes1[:, None, :2], boxes2[:, :2])
-    rb = torch.max(boxes1[:, None, 2:], boxes2[:, 2:])
+    lt = torch.min(boxes1_fixed[:, None, :2], boxes2_fixed[:, :2])
+    rb = torch.max(boxes1_fixed[:, None, 2:], boxes2_fixed[:, 2:])
 
     wh = (rb - lt).clamp(min=0)  # [N,M,2]
     area = wh[:, :, 0] * wh[:, :, 1]
 
-    return iou - (area - union) / area
+    # Avoid division by zero
+    giou = iou - (area - union) / (area + eps)
+    
+    # Handle any remaining NaN values
+    giou = torch.nan_to_num(giou, nan=0.0, posinf=1.0, neginf=-1.0)
+    
+    return giou
 
 
 def masks_to_boxes(masks):

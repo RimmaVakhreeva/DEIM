@@ -111,6 +111,9 @@ class CocoDetection(VisionDataset):
         image = self._load_image(id)
         target = self._load_target(id)
 
+        indices = random.choices(range(len(target)), k=min(300, len(target)))
+        target = [target[i] for i in indices]
+
         if self.transforms is not None:
             image, target = self.transforms(image, target)
 

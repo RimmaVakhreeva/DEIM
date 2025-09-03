@@ -1,0 +1,62 @@
+__include__: [
+  './dfine_hgnetv2_m_coco.yml',
+  '../base/deim.yml',
+  '../base/wandb.yml',
+]
+
+output_dir: /media/fast/drone_train/drone_ds/output
+find_unused_parameters: True
+
+optimizer:
+  type: AdamW
+  params: 
+    - 
+      params: '^(?=.*backbone)(?!.*norm|bn).*$'
+      lr: 0.000005   
+    - 
+      params: '^(?=.*(?:encoder|decoder))(?=.*(?:norm|bn)).*$'
+      weight_decay: 0.
+
+  lr: 0.0005
+  betas: [0.9, 0.999]
+  weight_decay: 0.000125
+  
+# Increase to search for the optimal ema
+epoches: 10
+gradient_accumulation_steps: 4
+
+## Our LR-Scheduler
+flat_epoch: 8    # 4 + epoch // 2, e.g., 40 = 4 + 72 / 2
+no_aug_epoch: 1
+
+train_dataloader: 
+  dataset: 
+    transforms:
+      policy:
+        epoch: [2, 5, 8]   # list
+
+  collate_fn:
+    mixup_epochs: [2, 8]
+    stop_epoch: 10
+
+  total_batch_size: 8
+
+val_dataloader:
+  total_batch_size: 8
+
+# WandB configuration for drone detection experiments
+wandb:
+  enabled: True
+  project: "DEIM-drone-detection"
+  entity: null  # set your wandb entity/team here
+  name: "deim-hgnetv2-m-drone-20ep"
+  tags: ["deim", "dfine", "hgnetv2-x", "drone-detection"]
+  notes: "DEIM HGNetv2-M training on drone dataset"
+  group: "hgnetv2-m-experiments"
+  job_type: "training"
+  
+  # Logging settings
+  log_frequency: 10
+  save_artifacts: True
+  watch_model: True
+  log_gradients: False

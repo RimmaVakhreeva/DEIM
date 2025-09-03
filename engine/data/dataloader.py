@@ -85,9 +85,9 @@ class BaseCollateFunction(object):
 
 def generate_scales(base_size, base_size_repeat):
     scale_repeat = (base_size - int(base_size * 0.75 / 32) * 32) // 32
-    scales = [int(base_size * 0.75 / 32) * 32 + i * 32 for i in range(scale_repeat)]
+    scales = [int(base_size * 1.2 / 32) * 32 + i * 32 for i in range(scale_repeat)]
     scales += [base_size] * base_size_repeat
-    scales += [int(base_size * 1.25 / 32) * 32 - i * 32 for i in range(scale_repeat)]
+    scales += [int(base_size * 1.6 / 32) * 32 - i * 32 for i in range(scale_repeat)]
     return scales
 
 
