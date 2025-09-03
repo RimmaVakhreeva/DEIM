@@ -52,8 +52,11 @@ class CocoDetection(VisionDataset):
     def _initialize_dataset_ids(self):
         """Initialize and cache dataset-specific ID lists"""
         # Datasets to use all images from
+        avoid_datasets = [
+            "stanford_drone"
+        ]
         use_all_datasets = [
-            "rgbt_drone_person", "search_and_rescue", "stanford_drone", 
+            "rgbt_drone_person", "search_and_rescue",
             "visdrone2019", "vtsar", "vtuav", "wisard"
         ]
         
@@ -66,7 +69,9 @@ class CocoDetection(VisionDataset):
             # Check if image has dataset information
             if 'dataset' in img_info:
                 dataset_name = img_info['dataset']
-                if dataset_name in use_all_datasets:
+                if dataset_name in avoid_datasets:
+                    continue
+                elif dataset_name in use_all_datasets:
                     self.priority_dataset_ids.append(img_id)
                 elif dataset_name == "objects365":
                     self.objects365_ids.append(img_id)
